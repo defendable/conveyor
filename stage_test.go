@@ -10,7 +10,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStageState(t *testing.T) {
+func TestStagePanic(t *testing.T) {
+	NewBuilder(nil).
+		AddSource(&Stage{
+			Process: func(parcel *Parcel) interface{} {
+				panic("kake")
+			},
+		}).
+		AddSink(&Stage{
+			Name:     "Transform",
+			MaxScale: 1,
+			Process: func(parcel *Parcel) interface{} {
+				return nil
+			}}).
+		Build().
+		Dispatch(context.Background()).
+		Wait()
+}
+
+func TestStageCache(t *testing.T) {
 	size := 100
 	NewBuilder(nil).
 		AddSource(&Stage{
@@ -60,7 +78,7 @@ func TestStageState(t *testing.T) {
 		}).Build().Dispatch(context.Background()).Wait()
 }
 
-func TestDeployAProcessingPipeline(t *testing.T) {
+func TestProcessingOrderUsingSequence(t *testing.T) {
 	numProcesses := 100
 	processedRecords := cmap.New()
 	for i := 0; i < numProcesses; i++ {

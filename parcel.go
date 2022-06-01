@@ -15,6 +15,7 @@ const (
 )
 
 type Parcel struct {
+	Error    interface{}
 	Content  interface{}
 	Signal   Signal
 	Cache    cmap.ConcurrentMap
