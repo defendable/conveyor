@@ -65,37 +65,37 @@ func (stage *Stage) rMoveToNextStage(parcel *Parcel, resultC chan interface{}, n
 	resultC <- stage.Process(parcel)
 }
 
-func (stage *Stage) MoveToNextStage(parcel *Parcel) interface{} {
+func (stage *Stage) moveToNextStage(parcel *Parcel) interface{} {
 	return func(resultC chan interface{}) interface{} {
 		go stage.rMoveToNextStage(parcel, resultC, 0)
 		return <-resultC
 	}(make(chan interface{}))
 }
 
-func (stage *Stage) DispatchSource(ctx context.Context, wg *sync.WaitGroup, factory *Factory, outbound chan *Parcel) {
+func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, factory *Factory, outbound chan *Parcel) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer close(outbound)
 		defer stage.Dispose()
 
-		parcel := NewParcel(stage.Init())
+		parcel := newParcel(stage.Init())
 		sourceCtx, sourceCancel := context.WithCancel(ctx)
 		defer sourceCancel()
 
-		for result := stage.MoveToNextStage(parcel); result != Stop; parcel = parcel.generate(result) {
+		for result := stage.moveToNextStage(parcel); result != Stop; parcel = parcel.generate(result) {
 			select {
 			case <-sourceCtx.Done():
 				result = Stop
 			default:
-				result = stage.MoveToNextStage(parcel)
+				result = stage.moveToNextStage(parcel)
 				outbound <- parcel.pack(result)
 			}
 		}
 	}()
 }
 
-func (stage *Stage) DispatchSegment(ctx context.Context, wg *sync.WaitGroup, factory *Factory, inbound, outbound chan *Parcel) {
+func (stage *Stage) dispatchSegment(ctx context.Context, wg *sync.WaitGroup, factory *Factory, inbound, outbound chan *Parcel) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -105,7 +105,7 @@ func (stage *Stage) DispatchSegment(ctx context.Context, wg *sync.WaitGroup, fac
 		stage.Init()
 		semaphore := make(chan struct{}, stage.MaxScale)
 		innerWg := sync.WaitGroup{}
-		parcel := NewParcel(nil)
+		parcel := newParcel(nil)
 
 		for receivedParcel := range inbound {
 			parcel = parcel.unpack(receivedParcel)
@@ -123,7 +123,7 @@ func (stage *Stage) DispatchSegment(ctx context.Context, wg *sync.WaitGroup, fac
 	}()
 }
 
-func (stage *Stage) DispatchSink(ctx context.Context, wg *sync.WaitGroup, factory *Factory, inbound chan *Parcel) {
+func (stage *Stage) dispatchSink(ctx context.Context, wg *sync.WaitGroup, factory *Factory, inbound chan *Parcel) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -132,7 +132,7 @@ func (stage *Stage) DispatchSink(ctx context.Context, wg *sync.WaitGroup, factor
 		stage.Init()
 		semaphore := make(chan struct{}, stage.MaxScale)
 		innerWg := sync.WaitGroup{}
-		parcel := NewParcel(nil)
+		parcel := newParcel(nil)
 
 		for receivedParcel := range inbound {
 			parcel = parcel.unpack(receivedParcel)

@@ -14,7 +14,7 @@ type IFactory interface {
 	Dispatch(ctx context.Context) *Runner
 }
 
-func NewFactory(builder *Builder) IFactory {
+func newFactory(builder *Builder) IFactory {
 	return &Factory{
 		stages: builder.stages,
 	}
@@ -37,13 +37,13 @@ func (factory *Factory) Dispatch(ctx context.Context) *Runner {
 		outbound = make(chan *Parcel, cSize)
 
 		if i == 0 {
-			stage.DispatchSource(ctx, wg, factory, outbound)
+			stage.dispatchSource(ctx, wg, factory, outbound)
 		} else if i == len(factory.stages)-1 {
-			stage.DispatchSink(ctx, wg, factory, inbound)
+			stage.dispatchSink(ctx, wg, factory, inbound)
 		} else {
-			stage.DispatchSegment(ctx, wg, factory, inbound, outbound)
+			stage.dispatchSegment(ctx, wg, factory, inbound, outbound)
 		}
 	}
 
-	return newAwaiter(wg)
+	return newRunner(wg)
 }
