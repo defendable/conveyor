@@ -1,4 +1,4 @@
-module github.com/defendable-isnes/conveyor
+module github.com/defendable/conveyor
 
 go 1.18
 

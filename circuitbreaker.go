@@ -18,5 +18,5 @@ type CircuitBreaker struct {
 }
 
 func (breaker *CircuitBreaker) Execute(func(parcel *Parcel) interface{}) interface{} {
-
+	return nil
 }

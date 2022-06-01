@@ -49,11 +49,16 @@ func (stage *Stage) tidy() {
 	}
 }
 
-func (stage *Stage) rMoveToNextStage(parcel *Parcel, resultC chan interface{}) {
+func (stage *Stage) rMoveToNextStage(parcel *Parcel, resultC chan interface{}, numberOfTries int) {
 	defer func() {
 		if err := recover(); err != nil {
-			parcel.Error = err
-			resultC <- nil
+			if numberOfTries < 3 {
+				stage.rMoveToNextStage(parcel, resultC, numberOfTries+1)
+			}
+			if numberOfTries == 0 {
+				parcel.Error = err
+				resultC <- nil
+			}
 		}
 	}()
 
@@ -62,7 +67,7 @@ func (stage *Stage) rMoveToNextStage(parcel *Parcel, resultC chan interface{}) {
 
 func (stage *Stage) MoveToNextStage(parcel *Parcel) interface{} {
 	return func(resultC chan interface{}) interface{} {
-		go stage.rMoveToNextStage(parcel, resultC)
+		go stage.rMoveToNextStage(parcel, resultC, 0)
 		return <-resultC
 	}(make(chan interface{}))
 }

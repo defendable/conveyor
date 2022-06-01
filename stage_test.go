@@ -11,16 +11,28 @@ import (
 )
 
 func TestStagePanic(t *testing.T) {
+	num := 0
+	maxNum := 100
 	NewBuilder(nil).
 		AddSource(&Stage{
 			Process: func(parcel *Parcel) interface{} {
-				panic("kake")
+				if num >= maxNum {
+					return Stop
+				}
+				num++
+
+				if num%2 == 0 {
+					panic("Something happened")
+				}
+
+				return num
 			},
 		}).
 		AddSink(&Stage{
 			Name:     "Transform",
 			MaxScale: 1,
 			Process: func(parcel *Parcel) interface{} {
+				assert.True(t, parcel.Sequence <= (uint(maxNum)/2))
 				return nil
 			}}).
 		Build().
