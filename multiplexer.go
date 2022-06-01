@@ -2,7 +2,7 @@ package conveyor
 
 import "sync"
 
-func NewConnector[T any](wg *sync.WaitGroup, sender, receiver chan T) {
+func newConnector[T any](wg *sync.WaitGroup, sender, receiver chan T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -12,7 +12,7 @@ func NewConnector[T any](wg *sync.WaitGroup, sender, receiver chan T) {
 	}()
 }
 
-func NewMultiplexerConnector[T any](wg *sync.WaitGroup, sender chan T, receivers ...chan T) {
+func newMultiplexerConnector[T any](wg *sync.WaitGroup, sender chan T, receivers ...chan T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -24,7 +24,7 @@ func NewMultiplexerConnector[T any](wg *sync.WaitGroup, sender chan T, receivers
 	}()
 }
 
-func NewDemultiplexerConnector[T any](wg *sync.WaitGroup, receiver chan T, senders ...chan T) {
+func newDemultiplexerConnector[T any](wg *sync.WaitGroup, receiver chan T, senders ...chan T) {
 	for _, sender := range senders {
 		wg.Add(1)
 		go func(sender chan T) {

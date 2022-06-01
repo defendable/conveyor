@@ -58,5 +58,5 @@ func (builder *Builder) AddSink(stage *Stage) ISink {
 }
 
 func (builder *Builder) Build() IFactory {
-	return NewFactory(builder)
+	return newFactory(builder)
 }

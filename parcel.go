@@ -31,7 +31,7 @@ func interpreteSignal(content interface{}) Signal {
 	}
 }
 
-func NewParcel(content interface{}) *Parcel {
+func newParcel(content interface{}) *Parcel {
 	return &Parcel{
 		Cache:    cmap.New(),
 		Signal:   interpreteSignal(content),
