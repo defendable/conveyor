@@ -11,7 +11,7 @@ type Factory struct {
 }
 
 type IFactory interface {
-	Dispatch(ctx context.Context) *Awaiter
+	Dispatch(ctx context.Context) *Runner
 }
 
 func NewFactory(builder *Builder) IFactory {
@@ -20,7 +20,7 @@ func NewFactory(builder *Builder) IFactory {
 	}
 }
 
-func (factory *Factory) Dispatch(ctx context.Context) *Awaiter {
+func (factory *Factory) Dispatch(ctx context.Context) *Runner {
 	if size := len(factory.stages); size <= 1 {
 		panic(fmt.Sprintf("conveyor belt is too short '%d', must be atleast contains two segment", size))
 	}

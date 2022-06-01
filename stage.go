@@ -6,9 +6,10 @@ import (
 )
 
 type Stage struct {
-	Name       string
-	MaxScale   uint
-	BufferSize uint
+	Name         string
+	MaxScale     uint
+	BufferSize   uint
+	CircuitBreak uint
 
 	Init    func() interface{}
 	Process func(parcel *Parcel) interface{}
@@ -48,15 +49,27 @@ func (stage *Stage) tidy() {
 	}
 }
 
-func (stage *Stage) DispatchExecutionContext(parcel *Parcel, result chan interface{}) {
+func (stage *Stage) rMoveToNextStage(parcel *Parcel, resultC chan interface{}, numberOfTries int) {
 	defer func() {
 		if err := recover(); err != nil {
-			//Handle recovery here!
-			result <- nil
+			if numberOfTries < 3 {
+				stage.rMoveToNextStage(parcel, resultC, numberOfTries+1)
+			}
+			if numberOfTries == 0 {
+				parcel.Error = err
+				resultC <- nil
+			}
 		}
 	}()
 
-	result <- stage.Process(parcel)
+	resultC <- stage.Process(parcel)
+}
+
+func (stage *Stage) MoveToNextStage(parcel *Parcel) interface{} {
+	return func(resultC chan interface{}) interface{} {
+		go stage.rMoveToNextStage(parcel, resultC, 0)
+		return <-resultC
+	}(make(chan interface{}))
 }
 
 func (stage *Stage) DispatchSource(ctx context.Context, wg *sync.WaitGroup, factory *Factory, outbound chan *Parcel) {
@@ -70,14 +83,12 @@ func (stage *Stage) DispatchSource(ctx context.Context, wg *sync.WaitGroup, fact
 		sourceCtx, sourceCancel := context.WithCancel(ctx)
 		defer sourceCancel()
 
-		for result := stage.Process(parcel); result != Stop; parcel = parcel.generate(result) {
+		for result := stage.MoveToNextStage(parcel); result != Stop; parcel = parcel.generate(result) {
 			select {
 			case <-sourceCtx.Done():
 				result = Stop
 			default:
-				resultC := make(chan interface{})
-				go stage.DispatchExecutionContext(parcel, resultC)
-				result = <-resultC
+				result = stage.MoveToNextStage(parcel)
 				outbound <- parcel.pack(result)
 			}
 		}
