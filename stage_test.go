@@ -5,10 +5,30 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestStageWithTimeoutDispatch(t *testing.T) {
+	ts1 := time.Now()
+	NewBuilder(nil).
+		AddSource(&Stage{
+			Name: "",
+			Process: func(parcel *Parcel) interface{} {
+				time.Sleep(time.Millisecond)
+				return nil
+			},
+		}).
+		AddSink(&Stage{
+			Process: func(parcel *Parcel) interface{} {
+				return nil
+			},
+		}).Build().DispatchWithTimeout(time.Second).Wait()
+
+	assert.Less(t, time.Since(ts1), time.Second*2)
+}
 
 func TestStagePanic(t *testing.T) {
 	num := 0
