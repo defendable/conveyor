@@ -9,7 +9,12 @@ const (
 	Static
 )
 
+type ICircuitBreaker interface {
+	Excecute(process Process) interface{}
+}
+
 type CircuitBreaker struct {
+	Enable   bool
 	Policy   FallbackPolicy
 	Interval time.Duration
 	Timeout  time.Duration

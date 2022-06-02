@@ -52,7 +52,7 @@ func TestStagePanic(t *testing.T) {
 			Name:     "Transform",
 			MaxScale: 1,
 			Process: func(parcel *Parcel) interface{} {
-				assert.True(t, parcel.Sequence <= (uint(maxNum)/2))
+				assert.True(t, parcel.Sequence <= (maxNum)/2)
 				return nil
 			}}).
 		Build().
@@ -61,21 +61,15 @@ func TestStagePanic(t *testing.T) {
 }
 
 func TestStageCache(t *testing.T) {
-	size := 100
+	boundary := 100
 	NewBuilder(nil).
 		AddSource(&Stage{
 			Name: "Extract",
-			Init: func() interface{} {
-				return -1
-			},
 			Process: func(parcel *Parcel) interface{} {
-				switch value := parcel.Content.(type) {
-				case int:
-					if value < size {
-						value++
-						parcel.Cache.Set("Extract", value)
-						return value
-					}
+				value := parcel.Sequence
+				if value < boundary {
+					parcel.Cache.Set("Extract", value)
+					return value
 				}
 				return Stop
 			},
@@ -98,7 +92,7 @@ func TestStageCache(t *testing.T) {
 			Process: func(parcel *Parcel) interface{} {
 				switch value := parcel.Content.(type) {
 				case int:
-					if value > (size / 2) {
+					if value > (boundary / 2) {
 						_, ok := parcel.Cache.Get("Load")
 						assert.True(t, ok)
 					} else {
@@ -119,17 +113,12 @@ func TestProcessingOrderUsingSequence(t *testing.T) {
 
 	NewBuilder(nil).
 		AddSource(&Stage{Name: "Extract",
-			Init: func() interface{} {
-				return -1
-			},
 			Process: func(parcal *Parcel) interface{} {
-				switch value := parcal.Content.(type) {
-				case int:
-					if value < numProcesses {
-						value++
-						return value
-					}
+				value := parcal.Sequence
+				if value < numProcesses {
+					return value
 				}
+
 				return Stop
 			},
 		}).

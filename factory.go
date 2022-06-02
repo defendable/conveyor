@@ -8,7 +8,7 @@ import (
 )
 
 type Factory struct {
-	stages []*Stage
+	stages [][]*Stage
 }
 
 type IFactory interface {
@@ -45,24 +45,34 @@ func (factory *Factory) Dispatch(ctx context.Context) *Runner {
 	}
 
 	wg := &sync.WaitGroup{}
-	outbound := make(chan *Parcel, factory.stages[1].BufferSize)
-	for i, stage := range factory.stages {
-		cSize := uint(0)
-		if i < len(factory.stages)-1 {
-			cSize = factory.stages[i+1].BufferSize
-		}
-
-		inbound := outbound
-		outbound = make(chan *Parcel, cSize)
-
-		if i == 0 {
-			stage.dispatchSource(ctx, wg, factory, outbound)
-		} else if i == len(factory.stages)-1 {
-			stage.dispatchSink(wg, factory, inbound)
+	bounds := make([]chan *Parcel, 0)
+	for i, stages := range factory.stages {
+		if len(stages) == 1 {
+			bounds = factory.dispatchSingle(ctx, wg, i, bounds...)
 		} else {
-			stage.dispatchSegment(wg, factory, inbound, outbound)
+			bounds = factory.dispatchMultiple(i, 0, bounds...)
 		}
 	}
 
 	return newRunner(wg)
+}
+
+func (factory *Factory) dispatchSingle(ctx context.Context, wg *sync.WaitGroup, i int, inbound ...chan *Parcel) []chan *Parcel {
+	stages := factory.stages[i]
+	stage := factory.stages[i][0]
+	outbound := make(chan *Parcel)
+
+	if i == 0 {
+		stage.dispatchSource(ctx, wg, factory, outbound)
+	} else if 1 <= i && i <= len(stages) {
+		stage.dispatchSegment(wg, factory, inbound[0], outbound)
+	} else {
+		stage.dispatchSink(wg, factory, inbound[0])
+	}
+
+	return []chan *Parcel{outbound}
+}
+
+func (factory *Factory) dispatchMultiple(i, j int, inbound ...chan *Parcel) (outbound []chan *Parcel) {
+	return nil
 }

@@ -5,22 +5,24 @@ import (
 	"sync"
 )
 
+type Process func(parcel *Parcel) interface{}
+
 type Stage struct {
 	Name         string
 	MaxScale     uint
 	BufferSize   uint
 	CircuitBreak uint
 
-	Init    func() interface{}
-	Process func(parcel *Parcel) interface{}
+	Init    func()
+	Process Process
 	Dispose func()
 }
 
 const (
 	DefaultScale      = 1
 	DefaultBufferSize = 10
-	MaxScale          = 1000
-	MaxBufferSize     = 1000
+	MaxScale          = 10000
+	MaxBufferSize     = 10000
 )
 
 func (stage *Stage) tidy() {
@@ -29,7 +31,7 @@ func (stage *Stage) tidy() {
 	}
 
 	if stage.Init == nil {
-		stage.Init = func() interface{} { return nil }
+		stage.Init = func() {}
 	}
 
 	if stage.Process == nil {
@@ -79,7 +81,8 @@ func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, fact
 		defer close(outbound)
 		defer stage.Dispose()
 
-		parcel := newParcel(stage.Init())
+		stage.Init()
+		parcel := newParcel(nil)
 		sourceCtx, sourceCancel := context.WithCancel(ctx)
 		defer sourceCancel()
 
