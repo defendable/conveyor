@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 )
 
 type Factory struct {
@@ -12,12 +13,30 @@ type Factory struct {
 
 type IFactory interface {
 	Dispatch(ctx context.Context) *Runner
+	DispatchBackground() *Runner
+	DispatchWithTimeout(duration time.Duration) *Runner
 }
 
 func newFactory(builder *Builder) IFactory {
 	return &Factory{
 		stages: builder.stages,
 	}
+}
+
+func (factory *Factory) DispatchBackground() *Runner {
+	return factory.Dispatch(context.Background())
+}
+
+func (factory *Factory) DispatchWithTimeout(duration time.Duration) *Runner {
+	ctx, cfunc := context.WithTimeout(context.Background(), duration)
+	go func() {
+		defer cfunc()
+		innerCtx, innerCfunc := context.WithCancel(ctx)
+		defer innerCfunc()
+		<-innerCtx.Done()
+	}()
+
+	return factory.Dispatch(ctx)
 }
 
 func (factory *Factory) Dispatch(ctx context.Context) *Runner {
@@ -39,9 +58,9 @@ func (factory *Factory) Dispatch(ctx context.Context) *Runner {
 		if i == 0 {
 			stage.dispatchSource(ctx, wg, factory, outbound)
 		} else if i == len(factory.stages)-1 {
-			stage.dispatchSink(ctx, wg, factory, inbound)
+			stage.dispatchSink(wg, factory, inbound)
 		} else {
-			stage.dispatchSegment(ctx, wg, factory, inbound, outbound)
+			stage.dispatchSegment(wg, factory, inbound, outbound)
 		}
 	}
 

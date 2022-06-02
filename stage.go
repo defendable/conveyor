@@ -95,7 +95,7 @@ func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, fact
 	}()
 }
 
-func (stage *Stage) dispatchSegment(ctx context.Context, wg *sync.WaitGroup, factory *Factory, inbound, outbound chan *Parcel) {
+func (stage *Stage) dispatchSegment(wg *sync.WaitGroup, factory *Factory, inbound, outbound chan *Parcel) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -123,7 +123,7 @@ func (stage *Stage) dispatchSegment(ctx context.Context, wg *sync.WaitGroup, fac
 	}()
 }
 
-func (stage *Stage) dispatchSink(ctx context.Context, wg *sync.WaitGroup, factory *Factory, inbound chan *Parcel) {
+func (stage *Stage) dispatchSink(wg *sync.WaitGroup, factory *Factory, inbound chan *Parcel) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
