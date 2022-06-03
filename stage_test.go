@@ -13,12 +13,11 @@ import (
 
 func TestStageWithTimeoutDispatch(t *testing.T) {
 	ts1 := time.Now()
-	NewBuilder(nil).
+	New(nil).
 		AddSource(&Stage{
-			Name: "",
 			Process: func(parcel *Parcel) interface{} {
 				time.Sleep(time.Millisecond)
-				return nil
+				return parcel.Sequence
 			},
 		}).
 		AddSink(&Stage{
@@ -33,7 +32,7 @@ func TestStageWithTimeoutDispatch(t *testing.T) {
 func TestStagePanic(t *testing.T) {
 	num := 0
 	maxNum := 100
-	NewBuilder(nil).
+	New(nil).
 		AddSource(&Stage{
 			Process: func(parcel *Parcel) interface{} {
 				if num >= maxNum {
@@ -52,7 +51,7 @@ func TestStagePanic(t *testing.T) {
 			Name:     "Transform",
 			MaxScale: 1,
 			Process: func(parcel *Parcel) interface{} {
-				assert.True(t, parcel.Sequence <= (uint(maxNum)/2))
+				assert.True(t, parcel.Sequence <= (maxNum)/2)
 				return nil
 			}}).
 		Build().
@@ -61,21 +60,15 @@ func TestStagePanic(t *testing.T) {
 }
 
 func TestStageCache(t *testing.T) {
-	size := 100
-	NewBuilder(nil).
+	boundary := 100
+	New(nil).
 		AddSource(&Stage{
 			Name: "Extract",
-			Init: func() interface{} {
-				return -1
-			},
 			Process: func(parcel *Parcel) interface{} {
-				switch value := parcel.Content.(type) {
-				case int:
-					if value < size {
-						value++
-						parcel.Cache.Set("Extract", value)
-						return value
-					}
+				value := parcel.Sequence
+				if value < boundary {
+					parcel.Cache.Set("Extract", value)
+					return value
 				}
 				return Stop
 			},
@@ -98,7 +91,7 @@ func TestStageCache(t *testing.T) {
 			Process: func(parcel *Parcel) interface{} {
 				switch value := parcel.Content.(type) {
 				case int:
-					if value > (size / 2) {
+					if value > (boundary / 2) {
 						_, ok := parcel.Cache.Get("Load")
 						assert.True(t, ok)
 					} else {
@@ -117,19 +110,14 @@ func TestProcessingOrderUsingSequence(t *testing.T) {
 		processedRecords.Set(fmt.Sprintf("%d", i), false)
 	}
 
-	NewBuilder(nil).
+	New(nil).
 		AddSource(&Stage{Name: "Extract",
-			Init: func() interface{} {
-				return -1
-			},
-			Process: func(parcal *Parcel) interface{} {
-				switch value := parcal.Content.(type) {
-				case int:
-					if value < numProcesses {
-						value++
-						return value
-					}
+			Process: func(parcel *Parcel) interface{} {
+				value := parcel.Sequence
+				if value < numProcesses {
+					return value
 				}
+
 				return Stop
 			},
 		}).
