@@ -13,12 +13,11 @@ import (
 
 func TestStageWithTimeoutDispatch(t *testing.T) {
 	ts1 := time.Now()
-	NewBuilder(nil).
+	New(nil).
 		AddSource(&Stage{
-			Name: "",
 			Process: func(parcel *Parcel) interface{} {
 				time.Sleep(time.Millisecond)
-				return nil
+				return parcel.Sequence
 			},
 		}).
 		AddSink(&Stage{
@@ -33,7 +32,7 @@ func TestStageWithTimeoutDispatch(t *testing.T) {
 func TestStagePanic(t *testing.T) {
 	num := 0
 	maxNum := 100
-	NewBuilder(nil).
+	New(nil).
 		AddSource(&Stage{
 			Process: func(parcel *Parcel) interface{} {
 				if num >= maxNum {
@@ -62,7 +61,7 @@ func TestStagePanic(t *testing.T) {
 
 func TestStageCache(t *testing.T) {
 	boundary := 100
-	NewBuilder(nil).
+	New(nil).
 		AddSource(&Stage{
 			Name: "Extract",
 			Process: func(parcel *Parcel) interface{} {
@@ -111,10 +110,10 @@ func TestProcessingOrderUsingSequence(t *testing.T) {
 		processedRecords.Set(fmt.Sprintf("%d", i), false)
 	}
 
-	NewBuilder(nil).
+	New(nil).
 		AddSource(&Stage{Name: "Extract",
-			Process: func(parcal *Parcel) interface{} {
-				value := parcal.Sequence
+			Process: func(parcel *Parcel) interface{} {
+				value := parcel.Sequence
 				if value < numProcesses {
 					return value
 				}

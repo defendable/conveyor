@@ -32,7 +32,7 @@ type ISink interface {
 	Build() IFactory
 }
 
-func NewBuilder(opts *Options) ISource {
+func New(opts *Options) ISource {
 	if opts == nil {
 		opts = NewDefaultOptions()
 	}

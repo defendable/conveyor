@@ -3,6 +3,8 @@ package conveyor
 import (
 	"context"
 	"sync"
+
+	cmap "github.com/orcaman/concurrent-map"
 )
 
 type Process func(parcel *Parcel) interface{}
@@ -13,9 +15,9 @@ type Stage struct {
 	BufferSize   uint
 	CircuitBreak uint
 
-	Init    func()
+	Init    func(cache cmap.ConcurrentMap)
 	Process Process
-	Dispose func()
+	Dispose func(cache cmap.ConcurrentMap)
 }
 
 const (
@@ -27,11 +29,11 @@ const (
 
 func (stage *Stage) tidy() {
 	if stage.Dispose == nil {
-		stage.Dispose = func() {}
+		stage.Dispose = func(cache cmap.ConcurrentMap) {}
 	}
 
 	if stage.Init == nil {
-		stage.Init = func() {}
+		stage.Init = func(cache cmap.ConcurrentMap) {}
 	}
 
 	if stage.Process == nil {
@@ -78,13 +80,13 @@ func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, fact
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		defer close(outbound)
-		defer stage.Dispose()
 
-		stage.Init()
 		parcel := newParcel(nil)
 		sourceCtx, sourceCancel := context.WithCancel(ctx)
+		stage.Init(parcel.Cache)
+		defer close(outbound)
 		defer sourceCancel()
+		defer stage.Dispose(parcel.Cache)
 
 		for result := stage.moveToNextStage(parcel); result != Stop; parcel = parcel.generate(result) {
 			select {
@@ -92,7 +94,9 @@ func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, fact
 				result = Stop
 			default:
 				result = stage.moveToNextStage(parcel)
-				outbound <- parcel.pack(result)
+				if result != Stop {
+					outbound <- parcel.pack(result)
+				}
 			}
 		}
 	}()
@@ -102,13 +106,13 @@ func (stage *Stage) dispatchSegment(wg *sync.WaitGroup, factory *Factory, inboun
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		defer close(outbound)
-		defer stage.Dispose()
 
-		stage.Init()
+		parcel := newParcel(nil)
 		semaphore := make(chan struct{}, stage.MaxScale)
 		innerWg := sync.WaitGroup{}
-		parcel := newParcel(nil)
+		stage.Init(parcel.Cache)
+		defer close(outbound)
+		defer stage.Dispose(parcel.Cache)
 
 		for receivedParcel := range inbound {
 			parcel = parcel.unpack(receivedParcel)
@@ -121,7 +125,6 @@ func (stage *Stage) dispatchSegment(wg *sync.WaitGroup, factory *Factory, inboun
 				outbound <- parcel.pack(stage.Process(parcel))
 			}(parcel)
 		}
-
 		innerWg.Wait()
 	}()
 }
@@ -130,12 +133,12 @@ func (stage *Stage) dispatchSink(wg *sync.WaitGroup, factory *Factory, inbound c
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		defer stage.Dispose()
 
-		stage.Init()
 		semaphore := make(chan struct{}, stage.MaxScale)
 		innerWg := sync.WaitGroup{}
 		parcel := newParcel(nil)
+		stage.Init(parcel.Cache)
+		defer stage.Dispose(parcel.Cache)
 
 		for receivedParcel := range inbound {
 			parcel = parcel.unpack(receivedParcel)

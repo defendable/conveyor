@@ -47,32 +47,61 @@ func (factory *Factory) Dispatch(ctx context.Context) *Runner {
 	wg := &sync.WaitGroup{}
 	bounds := make([]chan *Parcel, 0)
 	for i, stages := range factory.stages {
+		if 0 < i && len(factory.stages[i-1]) < len(factory.stages[i]) {
+			outbounds := make([]chan *Parcel, 0)
+			for _, stage := range stages {
+				outbounds = append(outbounds, make(chan *Parcel, stage.BufferSize))
+			}
+			newMultiplexerConnector(wg, bounds[0], outbounds...)
+			bounds = outbounds
+		} else if 0 < i && len(factory.stages[i-1]) > len(factory.stages[i]) {
+			inbound := []chan *Parcel{make(chan *Parcel, factory.stages[i][0].BufferSize)}
+			newDemultiplexerConnector(wg, inbound[0], bounds...)
+			bounds = inbound
+		}
+
 		if len(stages) == 1 {
-			bounds = factory.dispatchSingle(ctx, wg, i, bounds...)
+			bounds = factory.dispatchSingle(ctx, wg, i, 0, bounds...)
 		} else {
-			bounds = factory.dispatchMultiple(i, 0, bounds...)
+			bounds = *factory.dispatchMultiple(ctx, wg, i, 0, bounds, &[]chan *Parcel{})
 		}
 	}
 
 	return newRunner(wg)
 }
 
-func (factory *Factory) dispatchSingle(ctx context.Context, wg *sync.WaitGroup, i int, inbound ...chan *Parcel) []chan *Parcel {
-	stages := factory.stages[i]
-	stage := factory.stages[i][0]
-	outbound := make(chan *Parcel)
+func (factory *Factory) calculateOutbound(i, j int) chan *Parcel {
+	if len(factory.stages)-1 <= i {
+		return make(chan *Parcel)
+	}
+	if len(factory.stages[i]) > len(factory.stages[i+1]) {
+		return make(chan *Parcel, factory.stages[i+1][0].BufferSize)
+	}
+
+	return make(chan *Parcel, factory.stages[i+1][j].BufferSize)
+}
+
+func (factory *Factory) dispatchSingle(ctx context.Context, wg *sync.WaitGroup, i, j int, inbound ...chan *Parcel) []chan *Parcel {
+	stage := factory.stages[i][j]
+	outbound := factory.calculateOutbound(i, j)
 
 	if i == 0 {
 		stage.dispatchSource(ctx, wg, factory, outbound)
-	} else if 1 <= i && i <= len(stages) {
-		stage.dispatchSegment(wg, factory, inbound[0], outbound)
+	} else if 0 < i && i < len(factory.stages)-1 {
+		stage.dispatchSegment(wg, factory, inbound[j], outbound)
 	} else {
-		stage.dispatchSink(wg, factory, inbound[0])
+		stage.dispatchSink(wg, factory, inbound[j])
 	}
 
 	return []chan *Parcel{outbound}
 }
 
-func (factory *Factory) dispatchMultiple(i, j int, inbound ...chan *Parcel) (outbound []chan *Parcel) {
-	return nil
+func (factory *Factory) dispatchMultiple(ctx context.Context, wg *sync.WaitGroup, i, j int, inbound []chan *Parcel, outbound *[]chan *Parcel) *[]chan *Parcel {
+	if len(factory.stages[i]) <= j {
+		return outbound
+	}
+
+	*outbound = append(*outbound, factory.dispatchSingle(ctx, wg, i, j, inbound...)...)
+	j++
+	return factory.dispatchMultiple(ctx, wg, i, j, inbound, outbound)
 }
