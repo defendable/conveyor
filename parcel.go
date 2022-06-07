@@ -8,10 +8,11 @@ type Signal int
 
 const (
 	Stop Signal = iota
+	Skip
+	Failure
 )
 
 type Parcel struct {
-	Error    interface{}
 	Content  interface{}
 	Cache    cmap.ConcurrentMap
 	Sequence int

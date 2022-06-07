@@ -1,16 +1,21 @@
 package conveyor
 
 type Options struct {
-	QuitOnError         bool
-	FlushLogsInSequence bool
-	CircuitBreaker      ICircuitBreaker
-	Logger              ILogger
-	ErrorHandler        IErrorHandler
+	Name string
+
+	CircuitBreaker ICircuitBreaker
+	Logger         ILogger
+	ErrorHandler   IErrorHandler
 }
 
 func NewDefaultOptions() *Options {
+	name := "Unnamed"
+	logger := NewDefaultLogger()
 	return &Options{
-		QuitOnError:         false,
-		FlushLogsInSequence: true,
+		Name: name,
+
+		CircuitBreaker: NewDefeaultCircuitBreaker(),
+		Logger:         logger,
+		ErrorHandler:   NewDefaultErrorHandler(logger),
 	}
 }

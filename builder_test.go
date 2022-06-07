@@ -87,3 +87,32 @@ func TestBuildingSingleStageWithNilInputShouldPanic(t *testing.T) {
 			Wait()
 	})
 }
+
+func TestBuildingSingleStageWithLoggerToCtr(t *testing.T) {
+	name := "TestBuildingSingleStageWithOptionToCtr"
+	numIter := 100
+	New(&Options{
+		Name:   name,
+		Logger: NewLogger(name),
+	}).
+		AddSource(&Stage{
+			Name: "Count",
+			Process: func(parcel *Parcel) interface{} {
+				if parcel.Sequence > numIter {
+					return Stop
+				}
+
+				if (parcel.Sequence % 2) == 0 {
+					panic("test")
+				}
+
+				return parcel.Sequence
+			},
+		}).AddSink(&Stage{
+		Name: "Assert",
+		Process: func(parcel *Parcel) interface{} {
+			assert.Equal(t, parcel.Sequence%2, 1)
+			return nil
+		},
+	}).Build().DispatchWithTimeout(time.Second).Wait()
+}

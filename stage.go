@@ -2,6 +2,7 @@ package conveyor
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	cmap "github.com/orcaman/concurrent-map"
@@ -10,14 +11,17 @@ import (
 type Process func(parcel *Parcel) interface{}
 
 type Stage struct {
-	Name         string
-	MaxScale     uint
-	BufferSize   uint
-	CircuitBreak uint
+	Name       string
+	MaxScale   uint
+	BufferSize uint
 
 	Init    func(cache cmap.ConcurrentMap)
 	Process Process
 	Dispose func(cache cmap.ConcurrentMap)
+
+	CircuitBreaker ICircuitBreaker
+	ErrorHandler   IErrorHandler
+	Logger         ILogger
 }
 
 const (
@@ -27,7 +31,7 @@ const (
 	MaxBufferSize     = 10000
 )
 
-func (stage *Stage) tidy() {
+func (stage *Stage) tidy(options *Options) {
 	if stage.Dispose == nil {
 		stage.Dispose = func(cache cmap.ConcurrentMap) {}
 	}
@@ -51,32 +55,21 @@ func (stage *Stage) tidy() {
 	if stage.Name == "" {
 		stage.Name = "Unnamed"
 	}
+
+	if stage.Logger == nil {
+		stage.Logger = options.Logger
+	}
+
+	if stage.ErrorHandler == nil {
+		stage.ErrorHandler = options.ErrorHandler
+	}
+
+	if stage.CircuitBreaker == nil {
+		stage.CircuitBreaker = options.CircuitBreaker
+	}
 }
 
-func (stage *Stage) rMoveToNextStage(parcel *Parcel, resultC chan interface{}, numberOfTries int) {
-	defer func() {
-		if err := recover(); err != nil {
-			if numberOfTries < 3 {
-				stage.rMoveToNextStage(parcel, resultC, numberOfTries+1)
-			}
-			if numberOfTries == 0 {
-				parcel.Error = err
-				resultC <- nil
-			}
-		}
-	}()
-
-	resultC <- stage.Process(parcel)
-}
-
-func (stage *Stage) moveToNextStage(parcel *Parcel) interface{} {
-	return func(resultC chan interface{}) interface{} {
-		go stage.rMoveToNextStage(parcel, resultC, 0)
-		return <-resultC
-	}(make(chan interface{}))
-}
-
-func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, factory *Factory, outbound chan *Parcel) {
+func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, factory *factory, outbound chan *Parcel) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -88,21 +81,29 @@ func (stage *Stage) dispatchSource(ctx context.Context, wg *sync.WaitGroup, fact
 		defer sourceCancel()
 		defer stage.Dispose(parcel.Cache)
 
-		for result := stage.moveToNextStage(parcel); result != Stop; parcel = parcel.generate(result) {
+		stage.Logger.Information(stage, "source start processing")
+		for result := stage.CircuitBreaker.Excecute(stage, parcel); result != Stop; parcel = parcel.generate(result) {
 			select {
 			case <-sourceCtx.Done():
 				result = Stop
 			default:
-				result = stage.moveToNextStage(parcel)
+				result = stage.CircuitBreaker.Excecute(stage, parcel)
+				if result == Skip {
+					stage.Logger.EnqueueDebug(stage, parcel, fmt.Sprintf("source yielded 'Skip' when processing parcel '%d'", parcel.Sequence))
+				} else if result == Failure {
+					stage.Logger.EnqueueDebug(stage, parcel, fmt.Sprintf("source yielded an 'Failure' when processing parcel '%d'", parcel.Sequence))
+				}
+
 				if result != Stop {
 					outbound <- parcel.pack(result)
 				}
 			}
 		}
+		stage.Logger.Information(stage, "source done processing, quitting")
 	}()
 }
 
-func (stage *Stage) dispatchSegment(wg *sync.WaitGroup, factory *Factory, inbound, outbound chan *Parcel) {
+func (stage *Stage) dispatchSegment(wg *sync.WaitGroup, factory *factory, inbound, outbound chan *Parcel) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -114,25 +115,48 @@ func (stage *Stage) dispatchSegment(wg *sync.WaitGroup, factory *Factory, inboun
 		defer close(outbound)
 		defer stage.Dispose(parcel.Cache)
 
+		stage.Logger.Information(stage, "segment start processing")
 		for receivedParcel := range inbound {
 			parcel = parcel.unpack(receivedParcel)
+			if parcel.Content == Skip || parcel.Content == Failure {
+				tag := "Skip"
+				if parcel.Content == Failure {
+					tag = "Failure"
+				}
+				stage.Logger.EnqueueDebug(stage, parcel, fmt.Sprintf("segment received a parcel tagged '%s'. skipping", tag))
+				outbound <- parcel.pack(parcel.Content)
+				continue
+			}
 
 			semaphore <- struct{}{}
 			innerWg.Add(1)
 			go func(parcel *Parcel) {
 				defer innerWg.Done()
 				defer func() { <-semaphore }()
-				outbound <- parcel.pack(stage.Process(parcel))
+				result := stage.CircuitBreaker.Excecute(stage, parcel)
+				if result == Skip || result != Failure {
+					stage.Logger.EnqueueDebug(stage, parcel, fmt.Sprintf("segment's process yielded 'Skip' when processing parcel '%d'", parcel.Sequence))
+				}
+				if result != Failure {
+					stage.Logger.EnqueueDebug(stage, parcel, fmt.Sprintf("segment's process yielded 'Failure' when processing parcel '%d'", parcel.Sequence))
+				}
+
+				outbound <- parcel.pack(result)
 			}(parcel)
 		}
+		stage.Logger.Information(stage, "segment done processing, quitting")
 		innerWg.Wait()
 	}()
 }
 
-func (stage *Stage) dispatchSink(wg *sync.WaitGroup, factory *Factory, inbound chan *Parcel) {
+func (stage *Stage) dispatchSink(wg *sync.WaitGroup, factory *factory, inbound chan *Parcel, numSequences int) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		sequencesC := make(chan int, 5)
+		wg.Add(1)
+		go stage.sequenceFlusher(wg, sequencesC, numSequences)
 
 		semaphore := make(chan struct{}, stage.MaxScale)
 		innerWg := sync.WaitGroup{}
@@ -140,18 +164,49 @@ func (stage *Stage) dispatchSink(wg *sync.WaitGroup, factory *Factory, inbound c
 		stage.Init(parcel.Cache)
 		defer stage.Dispose(parcel.Cache)
 
+		stage.Logger.Information(stage, "sink start processing")
 		for receivedParcel := range inbound {
 			parcel = parcel.unpack(receivedParcel)
+
+			if parcel.Content == Skip {
+				stage.Logger.EnqueueDebug(stage, parcel, fmt.Sprintf("sink received parcel '%d' tagged 'Skip'. skipping", parcel.Sequence))
+				sequencesC <- parcel.Sequence
+				continue
+			}
+
+			if parcel.Content == Failure {
+				stage.Logger.EnqueueDebug(stage, parcel, fmt.Sprintf("sink received parcel '%d' containing an error. skipping", parcel.Sequence))
+				sequencesC <- parcel.Sequence
+				continue
+			}
 
 			semaphore <- struct{}{}
 			innerWg.Add(1)
 			go func(parcel *Parcel) {
 				defer innerWg.Done()
 				defer func() { <-semaphore }()
-				stage.Process(parcel)
+				stage.CircuitBreaker.Excecute(stage, parcel)
+				sequencesC <- parcel.Sequence
 			}(parcel)
 		}
-
 		innerWg.Wait()
+		close(sequencesC)
+		stage.Logger.Information(stage, "stage done processing, quitting")
 	}()
+}
+
+func (stage *Stage) sequenceFlusher(wg *sync.WaitGroup, inboundC chan int, numSequences int) {
+	defer wg.Done()
+	sequences := make(map[int]int)
+	for sequence := range inboundC {
+		if _, ok := sequences[sequence]; ok {
+			sequences[sequence] = 0
+		}
+
+		sequences[sequence]++
+		if sequence >= numSequences {
+			stage.Logger.Flush(sequence)
+			delete(sequences, sequence)
+		}
+	}
 }

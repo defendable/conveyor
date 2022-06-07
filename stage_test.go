@@ -29,36 +29,6 @@ func TestStageWithTimeoutDispatch(t *testing.T) {
 	assert.Less(t, time.Since(ts1), time.Second*2)
 }
 
-func TestStagePanic(t *testing.T) {
-	num := 0
-	maxNum := 100
-	New(nil).
-		AddSource(&Stage{
-			Process: func(parcel *Parcel) interface{} {
-				if num >= maxNum {
-					return Stop
-				}
-				num++
-
-				if num%2 == 0 {
-					panic("Something happened")
-				}
-
-				return num
-			},
-		}).
-		AddSink(&Stage{
-			Name:     "Transform",
-			MaxScale: 1,
-			Process: func(parcel *Parcel) interface{} {
-				assert.True(t, parcel.Sequence <= (maxNum)/2)
-				return nil
-			}}).
-		Build().
-		Dispatch(context.Background()).
-		Wait()
-}
-
 func TestStageCache(t *testing.T) {
 	boundary := 100
 	New(nil).
@@ -148,4 +118,29 @@ func TestProcessingOrderUsingSequence(t *testing.T) {
 	for _, IsProcessed := range processedRecords.Items() {
 		assert.True(t, IsProcessed.(bool))
 	}
+}
+
+func TestStageSkippingPackages(t *testing.T) {
+	numIter := 10
+	New(nil).
+		AddSource(&Stage{
+			Process: func(parcel *Parcel) interface{} {
+				if parcel.Sequence > numIter {
+					return Stop
+				}
+
+				if (parcel.Sequence % 2) == 0 {
+					return Skip
+				}
+
+				return parcel.Sequence
+			},
+		}).
+		AddStage(&Stage{}).
+		AddSink(&Stage{
+			Process: func(parcel *Parcel) interface{} {
+				assert.Equal(t, parcel.Sequence%2, 1)
+				return nil
+			},
+		}).Build().DispatchWithTimeout(time.Second).Wait()
 }
