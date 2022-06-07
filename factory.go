@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
-type Factory struct {
-	stages [][]*Stage
+type factory struct {
+	stages       [][]*Stage
+	numSequences int
 }
 
 type IFactory interface {
@@ -17,17 +18,18 @@ type IFactory interface {
 	DispatchWithTimeout(duration time.Duration) *Runner
 }
 
-func newFactory(builder *Builder) IFactory {
-	return &Factory{
-		stages: builder.stages,
+func newFactory(builder *builder) IFactory {
+	return &factory{
+		stages:       builder.stages,
+		numSequences: builder.numSequences,
 	}
 }
 
-func (factory *Factory) DispatchBackground() *Runner {
+func (factory *factory) DispatchBackground() *Runner {
 	return factory.Dispatch(context.Background())
 }
 
-func (factory *Factory) DispatchWithTimeout(duration time.Duration) *Runner {
+func (factory *factory) DispatchWithTimeout(duration time.Duration) *Runner {
 	ctx, cfunc := context.WithTimeout(context.Background(), duration)
 	go func() {
 		defer cfunc()
@@ -39,7 +41,7 @@ func (factory *Factory) DispatchWithTimeout(duration time.Duration) *Runner {
 	return factory.Dispatch(ctx)
 }
 
-func (factory *Factory) Dispatch(ctx context.Context) *Runner {
+func (factory *factory) Dispatch(ctx context.Context) *Runner {
 	if size := len(factory.stages); size <= 1 {
 		panic(fmt.Sprintf("conveyor belt is too short '%d', must be atleast contains two segment", size))
 	}
@@ -70,7 +72,7 @@ func (factory *Factory) Dispatch(ctx context.Context) *Runner {
 	return newRunner(wg)
 }
 
-func (factory *Factory) calculateOutbound(i, j int) chan *Parcel {
+func (factory *factory) calculateOutbound(i, j int) chan *Parcel {
 	if len(factory.stages)-1 <= i {
 		return make(chan *Parcel)
 	}
@@ -81,7 +83,7 @@ func (factory *Factory) calculateOutbound(i, j int) chan *Parcel {
 	return make(chan *Parcel, factory.stages[i+1][j].BufferSize)
 }
 
-func (factory *Factory) dispatchSingle(ctx context.Context, wg *sync.WaitGroup, i, j int, inbound ...chan *Parcel) []chan *Parcel {
+func (factory *factory) dispatchSingle(ctx context.Context, wg *sync.WaitGroup, i, j int, inbound ...chan *Parcel) []chan *Parcel {
 	stage := factory.stages[i][j]
 	outbound := factory.calculateOutbound(i, j)
 
@@ -90,13 +92,13 @@ func (factory *Factory) dispatchSingle(ctx context.Context, wg *sync.WaitGroup, 
 	} else if 0 < i && i < len(factory.stages)-1 {
 		stage.dispatchSegment(wg, factory, inbound[j], outbound)
 	} else {
-		stage.dispatchSink(wg, factory, inbound[j])
+		stage.dispatchSink(wg, factory, inbound[j], factory.numSequences)
 	}
 
 	return []chan *Parcel{outbound}
 }
 
-func (factory *Factory) dispatchMultiple(ctx context.Context, wg *sync.WaitGroup, i, j int, inbound []chan *Parcel, outbound *[]chan *Parcel) *[]chan *Parcel {
+func (factory *factory) dispatchMultiple(ctx context.Context, wg *sync.WaitGroup, i, j int, inbound []chan *Parcel, outbound *[]chan *Parcel) *[]chan *Parcel {
 	if len(factory.stages[i]) <= j {
 		return outbound
 	}
