@@ -1,4 +1,6 @@
-## Running benchmark tests
+# Examples
+
+## Benchmarks
 
 ```bash
 make incremental-work
