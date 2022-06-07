@@ -7,7 +7,7 @@ Data Processing Pipeline Framework for Go Apps
 go get -u github.com/defendable/conveyor
 ```
 
-[asd](https://github.com/defendable/conveyor/blob/features/readme/docs/images/multistage.pdf?raw=true)
+[image](https://github.com/defendable/conveyor/blob/features/readme/docs/images/multistage.png?raw=true)
 
 
 ## Getting Started
