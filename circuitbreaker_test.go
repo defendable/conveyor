@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	cmap "github.com/orcaman/concurrent-map"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +36,7 @@ func TestCircuitBreaker(t *testing.T) {
 				}
 				return nil
 			},
-			Dispose: func(cache cmap.ConcurrentMap) {
+			Dispose: func(cache *Cache) {
 				assert.Equal(t, numIterations, cache.Count())
 				for _, v := range cache.Items() {
 					assert.Equal(t, 3, v)

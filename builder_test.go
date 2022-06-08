@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	cmap "github.com/orcaman/concurrent-map"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,7 +54,7 @@ func TestBuildingMultiThreeStageConveyer(t *testing.T) {
 				parcel.Cache.Set(key, value)
 				return nil
 			},
-			Dispose: func(cache cmap.ConcurrentMap) {
+			Dispose: func(cache *Cache) {
 				for _, v := range cache.Items() {
 					result := v.(int)
 					assert.Equal(t, 3, result)
