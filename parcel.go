@@ -1,9 +1,5 @@
 package conveyor
 
-import (
-	cmap "github.com/orcaman/concurrent-map"
-)
-
 type Signal int
 
 const (
@@ -14,13 +10,13 @@ const (
 
 type Parcel struct {
 	Content  interface{}
-	Cache    cmap.ConcurrentMap
+	Cache    *Cache
 	Sequence int
 }
 
 func newParcel(content interface{}) *Parcel {
 	return &Parcel{
-		Cache:    cmap.New(),
+		Cache:    NewCache(),
 		Content:  content,
 		Sequence: 0,
 	}

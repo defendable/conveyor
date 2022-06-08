@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/defendable/conveyor"
-	cmap "github.com/orcaman/concurrent-map"
 )
 
 func incrementalWork(maxWork int, maxScale, maxBuffer uint) (result int) {
@@ -32,7 +31,7 @@ func incrementalWork(maxWork int, maxScale, maxBuffer uint) (result int) {
 				parcel.Cache.Set(fmt.Sprintf("%d", parcel.Sequence), parcel.Content)
 				return nil
 			},
-			Dispose: func(cache cmap.ConcurrentMap) {
+			Dispose: func(cache *conveyor.Cache) {
 				result = 0
 				for _, v := range cache.Items() {
 					result += v.(int)

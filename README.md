@@ -1,6 +1,25 @@
-# conveyor
+# Conveyor
 Data Processing Pipeline Framework for Go Apps
 
-## TODO
-* Log segmentation
-* Thread Recovery with Error handler
+
+## Installation
+```bash
+go get -u github.com/defendable/conveyor
+```
+
+![image](https://raw.githubusercontent.com/defendable/conveyor/features/readme/docs/images/multistage.png)
+
+```go
+
+
+func main() {
+
+}
+ad
+```
+
+
+## Getting Started
+```go
+
+```

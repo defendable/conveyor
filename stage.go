@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-
-	cmap "github.com/orcaman/concurrent-map"
 )
 
 type Process func(parcel *Parcel) interface{}
@@ -15,9 +13,9 @@ type Stage struct {
 	MaxScale   uint
 	BufferSize uint
 
-	Init    func(cache cmap.ConcurrentMap)
+	Init    func(cache *Cache)
 	Process Process
-	Dispose func(cache cmap.ConcurrentMap)
+	Dispose func(cache *Cache)
 
 	CircuitBreaker ICircuitBreaker
 	ErrorHandler   IErrorHandler
@@ -33,11 +31,11 @@ const (
 
 func (stage *Stage) tidy(options *Options) {
 	if stage.Dispose == nil {
-		stage.Dispose = func(cache cmap.ConcurrentMap) {}
+		stage.Dispose = func(cache *Cache) {}
 	}
 
 	if stage.Init == nil {
-		stage.Init = func(cache cmap.ConcurrentMap) {}
+		stage.Init = func(cache *Cache) {}
 	}
 
 	if stage.Process == nil {
