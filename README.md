@@ -1,6 +1,9 @@
 # Conveyor
-Data Processing Pipeline Framework for Go Apps
+Conveyer is a 
 
+## Features
+* 
+* Circuit breaker with exponential and static
 
 ## Installation
 
