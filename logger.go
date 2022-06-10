@@ -2,7 +2,6 @@ package conveyor
 
 import (
 	"io/ioutil"
-	"runtime/debug"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -72,7 +71,6 @@ func (logger *Logger) Error(stage *Stage, msg string) {
 	logger.logger.WithFields(logrus.Fields{
 		"conveyer": logger.name,
 		"stage":    stage.Name,
-		"stack":    string(debug.Stack()),
 	}).Error(msg)
 }
 
@@ -91,7 +89,6 @@ func (logger *Logger) Debug(stage *Stage, msg string) {
 	logger.logger.WithFields(logrus.Fields{
 		"conveyer": logger.name,
 		"stage":    stage.Name,
-		"stack":    string(debug.Stack()),
 	}).Debug(msg)
 }
 
@@ -111,7 +108,6 @@ func (logger *Logger) EnqueueError(stage *Stage, parcel *Parcel, msg string) {
 			"conveyer": logger.name,
 			"stage":    stage.Name,
 			"sequence": parcel.Sequence,
-			"stack":    string(debug.Stack()),
 		}).Error(msg)
 	})
 }
@@ -133,7 +129,6 @@ func (logger *Logger) EnqueueDebug(stage *Stage, parcel *Parcel, msg string) {
 			"stage":    stage.Name,
 			"sequence": parcel.Sequence,
 			"content":  parcel.Content,
-			"stack":    string(debug.Stack()),
 		}).Debug(msg)
 	})
 }

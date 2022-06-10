@@ -1,6 +1,7 @@
 package conveyor
 
 import (
+	"runtime/debug"
 	"time"
 )
 
@@ -40,7 +41,7 @@ func (breaker *CircuitBreaker) execute(stage *Stage, parcel *Parcel, circuit int
 			} else if !breaker.Enabled {
 				return
 			} else if circuit > breaker.NumberOfRetries {
-				stage.ErrorHandler.Handle(stage, parcel, err)
+				stage.ErrorHandler.Handle(stage, parcel, &Error{Data: err, Stack: string(debug.Stack())})
 				result = Failure
 			} else {
 				<-breaker.NewBackoffTimer(circuit).C
