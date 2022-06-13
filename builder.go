@@ -2,12 +2,14 @@ package conveyor
 
 import (
 	"fmt"
+	"sync"
 )
 
 type builder struct {
 	options      Options
 	stages       [][]*Stage
 	numSequences int
+	mutex        *sync.RWMutex
 }
 
 type ISource interface {
@@ -51,11 +53,15 @@ func New(opts *Options) ISource {
 		options:      *opts,
 		numSequences: 1,
 		stages:       make([][]*Stage, 0),
+		mutex:        &sync.RWMutex{},
 	}
 }
 
 /// Not thread safe
 func (builder *builder) AddSource(stage *Stage) IStage {
+	builder.mutex.Lock()
+	defer builder.mutex.Unlock()
+
 	builder.verifyInput(stage)
 	builder.stages = append(builder.stages, []*Stage{stage})
 	return builder
@@ -72,16 +78,22 @@ func (builder *builder) AddSink(stage *Stage) ISink {
 }
 
 func (builder *builder) Fanout(stages ...*Stage) IStages {
+	builder.mutex.Lock()
+	defer builder.mutex.Unlock()
+
 	builder.verifyInput(stages...)
 	builder.stages = append(builder.stages, stages)
 	return builder
 }
 
 func (builder *builder) AddStages(stages ...*Stage) IStages {
+	builder.mutex.Lock()
+	defer builder.mutex.Unlock()
+
 	builder.numSequences *= len(stages)
 	lastLen := len(builder.stages[len(builder.stages)-1])
 	if len(stages) != lastLen {
-		panic(fmt.Sprintf("Have current '%d' fanout, received only '%d', must be equal", lastLen, len(stages)))
+		panic(fmt.Sprintf("have current '%d' fanout(s), received only '%d' segements, they must be equal", lastLen, len(stages)))
 	}
 
 	builder.verifyInput(stages...)

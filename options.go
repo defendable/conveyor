@@ -9,11 +9,10 @@ type Options struct {
 }
 
 func NewDefaultOptions() *Options {
-	name := "Unnamed"
+	name := "unnamed"
 	logger := NewDefaultLogger()
 	return &Options{
-		Name: name,
-
+		Name:           name,
 		CircuitBreaker: NewDefeaultCircuitBreaker(),
 		Logger:         logger,
 		ErrorHandler:   NewDefaultErrorHandler(logger),
