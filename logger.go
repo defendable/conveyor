@@ -8,17 +8,18 @@ import (
 )
 
 type ILogger interface {
-	Warning(stage *Stage, msg string)
-	Error(stage *Stage, msg string)
-	Information(stage *Stage, msg string)
-	Debug(stage *Stage, msg string)
+	Warning(stage *Stage, args ...interface{})
+	Error(stage *Stage, args ...interface{})
+	Information(stage *Stage, args ...interface{})
+	Debug(stage *Stage, args ...interface{})
 
-	EnqueueWarning(stage *Stage, parcel *Parcel, msg string)
-	EnqueueError(stage *Stage, parcel *Parcel, msg string)
-	EnqueueInformation(stage *Stage, parcel *Parcel, msg string)
-	EnqueueDebug(stage *Stage, parcel *Parcel, msg string)
+	EnqueueWarning(stage *Stage, parcel *Parcel, args ...interface{})
+	EnqueueError(stage *Stage, parcel *Parcel, args ...interface{})
+	EnqueueInformation(stage *Stage, parcel *Parcel, args ...interface{})
+	EnqueueDebug(stage *Stage, parcel *Parcel, args ...interface{})
 
-	Flush(sequence int)
+	flush(sequence int)
+	flusher(wg *sync.WaitGroup, flushMessageC chan *flushMessage, numSequences int)
 }
 
 type Logger struct {
@@ -26,6 +27,11 @@ type Logger struct {
 	logger *logrus.Logger
 	logs   map[int][]func()
 	mutex  *sync.Mutex
+}
+
+type flushMessage struct {
+	sequence int
+	add      int
 }
 
 var (
@@ -43,93 +49,93 @@ func NewDefaultLogger() ILogger {
 	}
 }
 
-func NewLogger(name string) ILogger {
+func NewLogger(conveyorName string) ILogger {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetLevel(logrus.InfoLevel)
 
 	return &Logger{
-		name:   name,
+		name:   conveyorName,
 		logger: logger,
 		logs:   make(map[int][]func()),
 		mutex:  &sync.Mutex{},
 	}
 }
 
-func (logger *Logger) Warning(stage *Stage, msg string) {
+func (logger *Logger) Warning(stage *Stage, args ...interface{}) {
 	logGil.Lock()
 	defer logGil.Unlock()
 	logger.logger.WithFields(logrus.Fields{
-		"conveyer": logger.name,
+		"conveyor": logger.name,
 		"stage":    stage.Name,
-	}).Warning(msg)
+	}).Warning(args...)
 }
 
-func (logger *Logger) Error(stage *Stage, msg string) {
+func (logger *Logger) Error(stage *Stage, args ...interface{}) {
 	logGil.Lock()
 	defer logGil.Unlock()
 	logger.logger.WithFields(logrus.Fields{
-		"conveyer": logger.name,
+		"conveyor": logger.name,
 		"stage":    stage.Name,
-	}).Error(msg)
+	}).Error(args...)
 }
 
-func (logger *Logger) Information(stage *Stage, msg string) {
+func (logger *Logger) Information(stage *Stage, args ...interface{}) {
 	logGil.Lock()
 	defer logGil.Unlock()
 	logger.logger.WithFields(logrus.Fields{
-		"conveyer": logger.name,
+		"conveyor": logger.name,
 		"stage":    stage.Name,
-	}).Info(msg)
+	}).Info(args...)
 }
 
-func (logger *Logger) Debug(stage *Stage, msg string) {
+func (logger *Logger) Debug(stage *Stage, args ...interface{}) {
 	logGil.Lock()
 	defer logGil.Unlock()
 	logger.logger.WithFields(logrus.Fields{
-		"conveyer": logger.name,
+		"conveyor": logger.name,
 		"stage":    stage.Name,
-	}).Debug(msg)
+	}).Debug(args...)
 }
 
-func (logger *Logger) EnqueueWarning(stage *Stage, parcel *Parcel, msg string) {
+func (logger *Logger) EnqueueWarning(stage *Stage, parcel *Parcel, args ...interface{}) {
 	logger.Append(parcel, func() {
 		logger.logger.WithFields(logrus.Fields{
-			"conveyer": logger.name,
+			"conveyor": logger.name,
 			"stage":    stage.Name,
 			"sequence": parcel.Sequence,
-		}).Warning(msg)
+		}).Warning(args...)
 	})
 }
 
-func (logger *Logger) EnqueueError(stage *Stage, parcel *Parcel, msg string) {
+func (logger *Logger) EnqueueError(stage *Stage, parcel *Parcel, args ...interface{}) {
 	logger.Append(parcel, func() {
 		logger.logger.WithFields(logrus.Fields{
-			"conveyer": logger.name,
+			"conveyor": logger.name,
 			"stage":    stage.Name,
 			"sequence": parcel.Sequence,
-		}).Error(msg)
+		}).Error(args...)
 	})
 }
 
-func (logger *Logger) EnqueueInformation(stage *Stage, parcel *Parcel, msg string) {
+func (logger *Logger) EnqueueInformation(stage *Stage, parcel *Parcel, args ...interface{}) {
 	logger.Append(parcel, func() {
 		logger.logger.WithFields(logrus.Fields{
-			"conveyer": logger.name,
+			"conveyor": logger.name,
 			"stage":    stage.Name,
 			"sequence": parcel.Sequence,
-		}).Info(msg)
+		}).Info(args...)
 	})
 }
 
-func (logger *Logger) EnqueueDebug(stage *Stage, parcel *Parcel, msg string) {
+func (logger *Logger) EnqueueDebug(stage *Stage, parcel *Parcel, args ...interface{}) {
 	logger.Append(parcel, func() {
 		logger.logger.WithFields(logrus.Fields{
-			"conveyer": logger.name,
+			"conveyor": logger.name,
 			"stage":    stage.Name,
 			"sequence": parcel.Sequence,
 			"content":  parcel.Content,
-		}).Debug(msg)
+		}).Debug(args...)
 	})
 }
 
@@ -137,18 +143,18 @@ func (logger *Logger) Append(parcel *Parcel, fn func()) {
 	logger.mutex.Lock()
 	defer logger.mutex.Unlock()
 
-	if _, ok := logger.logs[parcel.Sequence]; ok {
+	if _, ok := logger.logs[parcel.Sequence]; !ok {
 		logger.logs[parcel.Sequence] = make([]func(), 0)
 	}
 
 	logger.logs[parcel.Sequence] = append(logger.logs[parcel.Sequence], fn)
 }
 
-func (logger *Logger) Flush(sequence int) {
+func (logger *Logger) flush(sequence int) {
 	logGil.Lock()
 	logger.mutex.Lock()
-	defer logGil.Unlock()
 	defer logger.mutex.Unlock()
+	defer logGil.Unlock()
 
 	if val, ok := logger.logs[sequence]; ok {
 		for _, fn := range val {
@@ -157,4 +163,25 @@ func (logger *Logger) Flush(sequence int) {
 	}
 
 	delete(logger.logs, sequence)
+}
+
+func (logger *Logger) flusher(wg *sync.WaitGroup, flushMessageC chan *flushMessage, numInitSequences int) {
+	defer wg.Done()
+	sequences := make(map[int]int)
+
+	for msg := range flushMessageC {
+		if _, ok := sequences[msg.sequence]; ok {
+			sequences[msg.sequence] = 0
+		}
+
+		sequences[msg.sequence] += msg.add
+		if msg.sequence >= numInitSequences {
+			logger.flush(msg.sequence)
+			delete(sequences, msg.sequence)
+		}
+	}
+
+	for k := range logger.logs {
+		logger.flush(k)
+	}
 }
