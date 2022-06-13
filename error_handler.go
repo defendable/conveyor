@@ -1,7 +1,5 @@
 package conveyor
 
-import "fmt"
-
 type ErrorHandler struct {
 	Logger ILogger
 }
@@ -22,5 +20,5 @@ func NewDefaultErrorHandler(logger ILogger) IErrorHandler {
 }
 
 func (handler *ErrorHandler) Handle(stage *Stage, parcel *Parcel, err *Error) {
-	handler.Logger.EnqueueError(stage, parcel, fmt.Sprintf("%s\n%s", fmt.Sprint(err.Data), err.Stack))
+	handler.Logger.EnqueueError(stage, parcel, err.Data)
 }
