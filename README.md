@@ -96,6 +96,3 @@ func main() {
 }
 ```
 
-
-# TODO
-* Unpack and pack functionality
