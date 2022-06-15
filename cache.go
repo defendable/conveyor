@@ -6,7 +6,7 @@ type Cache struct {
 	cmap.ConcurrentMap
 }
 
-func NewCache() *Cache {
+func newCache() *Cache {
 	return &Cache{
 		ConcurrentMap: cmap.New(),
 	}
