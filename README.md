@@ -41,7 +41,7 @@ func main() {
 			Name: "numerate",
 			Process: func(parcel *conveyor.Parcel) interface{} {
 				if parcel.Sequence > maxNum {
-					return conveyor.Skip
+					return conveyor.Stop
 				}
 				return parcel.Sequence
 			},
