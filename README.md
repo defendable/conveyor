@@ -1,4 +1,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/defendable/conveyor)](https://goreportcard.com/report/github.com/defendable/conveyor)
+[![Go Reference](https://pkg.go.dev/badge/github.com/defendable/conveyor.svg)](https://pkg.go.dev/github.com/defendable/conveyor)
+![GitHub](https://img.shields.io/github/license/defendable/conveyor)
 
 # Conveyor
 you to specify the segments in a pipeline without writing any code that involves synchronizing threads. The communication between the segments is entirely built on buffered blocking channels. All the segments run concurrently using go routines.
@@ -31,7 +33,7 @@ go get -u github.com/defendable/conveyor
 
 ## Usage
 
-![image](https://raw.githubusercontent.com/defendable/conveyor/features/readme/docs/images/multistage.png)
+![image](https://raw.githubusercontent.com/defendable/conveyor/main/docs/images/multistage.png)
 
 ```go
 func main() {
