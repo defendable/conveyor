@@ -155,11 +155,11 @@ func TestSourceStageUnpackPackages(t *testing.T) {
 					return Stop
 				}
 
-				slices := make([]interface{}, 0)
+				slices := make([]int, 0)
 				for i := 0; i < numIter; i++ {
 					slices = append(slices, i)
 				}
-				return Unpack{Data: slices}
+				return UnpackData(slices)
 			},
 		}).
 		AddSink(&Stage{
@@ -206,7 +206,7 @@ func TestSegmentStageUnpackPackages(t *testing.T) {
 				for i := 0; i < numIter; i++ {
 					slices = append(slices, i)
 				}
-				return Unpack{Data: slices}
+				return UnpackData(slices)
 			},
 		}).
 		AddSink(&Stage{

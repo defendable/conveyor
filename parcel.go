@@ -8,10 +8,7 @@ const (
 	Failure
 )
 
-type Unpack struct {
-	Data []interface{}
-}
-
+//
 type Parcel struct {
 	Content  interface{}
 	Cache    *Cache
@@ -22,7 +19,7 @@ type Parcel struct {
 
 func newParcel(content interface{}, stage *Stage) *Parcel {
 	return &Parcel{
-		Cache:    NewCache(),
+		Cache:    newCache(),
 		Content:  content,
 		Sequence: 0,
 		Stage:    stage,

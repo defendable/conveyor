@@ -16,6 +16,7 @@ func newRunner(wg *sync.WaitGroup) *Runner {
 	}
 }
 
+//
 func JoinRunners(runners ...*Runner) *Runner {
 	wg := &sync.WaitGroup{}
 	for _, runner := range runners {

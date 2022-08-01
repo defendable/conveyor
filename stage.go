@@ -6,10 +6,8 @@ import (
 	"sync"
 )
 
-//
 type Process func(parcel *Parcel) interface{}
 
-//
 type Stage struct {
 	Name       string
 	MaxScale   uint
