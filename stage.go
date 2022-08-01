@@ -89,7 +89,7 @@ func (stage *Stage) dispatchSource(arg *stageArg) {
 		defer stage.Dispose(parcel.Cache)
 
 		stage.logger.Information(stage, "source start processing")
-		for result := stage.CircuitBreaker.Excecute(stage, parcel); result != Stop; {
+		for result := stage.CircuitBreaker.Execute(stage, parcel); result != Stop; {
 			select {
 			case <-sourceCtx.Done():
 				result = Stop
@@ -113,7 +113,7 @@ func (stage *Stage) dispatchSource(arg *stageArg) {
 				}
 
 				parcel = parcel.generate(result)
-				result = stage.CircuitBreaker.Excecute(stage, parcel)
+				result = stage.CircuitBreaker.Execute(stage, parcel)
 			}
 		}
 
@@ -151,7 +151,7 @@ func (stage *Stage) dispatchSegment(arg *stageArg) {
 			go func(parcel *Parcel) {
 				defer innerWg.Done()
 				defer func() { <-semaphore }()
-				result := stage.CircuitBreaker.Excecute(stage, parcel)
+				result := stage.CircuitBreaker.Execute(stage, parcel)
 
 				switch value := result.(type) {
 				case Unpack:
@@ -202,7 +202,7 @@ func (stage *Stage) dispatchSink(arg *stageArg) {
 			go func(parcel *Parcel) {
 				defer innerWg.Done()
 				defer func() { <-semaphore }()
-				stage.CircuitBreaker.Excecute(stage, parcel)
+				stage.CircuitBreaker.Execute(stage, parcel)
 				arg.flushMsg <- &flushMessage{sequence: parcel.Sequence, add: 1}
 			}(parcel)
 		}
