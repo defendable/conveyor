@@ -13,7 +13,7 @@ const (
 )
 
 type ICircuitBreaker interface {
-	Excecute(stage *Stage, parcel *Parcel) interface{}
+	Execute(stage *Stage, parcel *Parcel) interface{}
 }
 
 type CircuitBreaker struct {
@@ -54,7 +54,7 @@ func (breaker *CircuitBreaker) execute(stage *Stage, parcel *Parcel, circuit int
 	return result
 }
 
-func (breaker *CircuitBreaker) Excecute(stage *Stage, parcel *Parcel) interface{} {
+func (breaker *CircuitBreaker) Execute(stage *Stage, parcel *Parcel) interface{} {
 	return breaker.execute(stage, parcel, 0)
 }
 

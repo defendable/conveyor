@@ -12,22 +12,26 @@ type builder struct {
 	mutex        *sync.RWMutex
 }
 
+// First segment in pipeline
 type ISource interface {
 	AddSource(stage *Stage) IStage
 }
 
+// Single/Fanin segment
 type IStage interface {
 	AddStage(stage *Stage) IStage
 	AddSink(stage *Stage) ISink
 	Fanout(stages ...*Stage) IStages
 }
 
+// Fanout Intermediary segment
 type IStages interface {
 	AddStages(stages ...*Stage) IStages
 	AddSinks(stages ...*Stage) ISink
 	Fanin(stage *Stage) IStage
 }
 
+// Last segment in 
 type ISink interface {
 	Build() IFactory
 }
