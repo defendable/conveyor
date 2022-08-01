@@ -113,9 +113,6 @@ func main() {
 }
 ```
 
-<<<<<<< HEAD
 # Examples
 
 See `examples` folder for examples and benchmarks.
-=======
->>>>>>> 8c034c5234e862cb08d475b4c9df58f04a951d32
