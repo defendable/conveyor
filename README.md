@@ -1,9 +1,18 @@
 # Conveyor
-Conveyer is a 
+Conveyer is a data processing pipeline for go apps. The framework supports  
+
+
 
 ## Features
-* 
-* Circuit breaker with exponential and static
+* *Fanin* and *Fanout* of segments.
+* Easy scale of each segment
+* Optional init and dispose job for a each segment
+* *Circuit breaker* with exponential and static fallback policy
+* Smart flushing of logs. Queues logs in sequence and flushes the sequence when executed
+* Local cache for segment's to maintain state
+* Configurable inbound buffer size
+* Error handler 
+* Supports custom injectable logger, circuitbreaker and error handler.
 
 ## Installation
 
@@ -11,8 +20,12 @@ Conveyer is a
 go get -u github.com/defendable/conveyor
 ```
 
+## Notes
+* Only the first stage can terminate the pipeline which is done by returning `conveyor.Stop` as shown in the *Usage* section. If any of the other segments returns the stop symbol the symbol will be received as input to the next segment(s).
 
-## Getting Started
+* 
+
+## Usage
 
 ![image](https://raw.githubusercontent.com/defendable/conveyor/features/readme/docs/images/multistage.png)
 
@@ -96,3 +109,6 @@ func main() {
 }
 ```
 
+# Examples
+
+See `examples` folder
