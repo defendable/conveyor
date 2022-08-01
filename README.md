@@ -22,7 +22,6 @@ Within each segment, you can specify an init and dispose job where the init job 
 go get -u github.com/defendable/conveyor
 ```
 
-<<<<<<< HEAD
 ## Notes
 * Only the first stage can terminate the pipeline which is done by returning `conveyor.Stop` as shown in the *Usage* section. If any of the other segments returns the stop symbol the symbol will be received as input to the next segment(s).
 
@@ -31,10 +30,6 @@ go get -u github.com/defendable/conveyor
 * Do not return errors from an injected process, Instead use `panic` with the error. The circuit breaker recovers all the panic and handles the retries.
 
 ## Usage
-=======
-
-## Getting Started
->>>>>>> 8c034c5234e862cb08d475b4c9df58f04a951d32
 
 ![image](https://raw.githubusercontent.com/defendable/conveyor/features/readme/docs/images/multistage.png)
 
