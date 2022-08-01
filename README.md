@@ -1,3 +1,5 @@
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/defendable/conveyor)](https://goreportcard.com/report/github.com/defendable/conveyor)
 # Conveyor
 Conveyer is a data processing pipeline for go apps. The framework supports  
 

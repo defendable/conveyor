@@ -165,14 +165,14 @@ func TestSourceStageUnpackPackages(t *testing.T) {
 		AddSink(&Stage{
 			Process: func(parcel *Parcel) interface{} {
 				actualIters++
-				switch value := parcel.Content.(type) {
+				switch parcel.Content.(type) {
 				case int:
 					key := fmt.Sprintf("%d", parcel.Content)
 					if !parcel.Cache.Has(key) {
 						parcel.Cache.Set(key, 1)
 					} else {
 						record, _ := parcel.Cache.Get(key)
-						value = record.(int)
+						value := record.(int)
 						value++
 						parcel.Cache.Set(key, value)
 					}
@@ -212,14 +212,14 @@ func TestSegmentStageUnpackPackages(t *testing.T) {
 		AddSink(&Stage{
 			Process: func(parcel *Parcel) interface{} {
 				actualIters++
-				switch value := parcel.Content.(type) {
+				switch parcel.Content.(type) {
 				case int:
 					key := fmt.Sprintf("%d", parcel.Content)
 					if !parcel.Cache.Has(key) {
 						parcel.Cache.Set(key, 1)
 					} else {
 						record, _ := parcel.Cache.Get(key)
-						value = record.(int)
+						value := record.(int)
 						value++
 						parcel.Cache.Set(key, value)
 					}
