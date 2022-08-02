@@ -3,7 +3,7 @@
 ![GitHub](https://img.shields.io/github/license/defendable/conveyor)
 
 # Conveyor
-you to specify the segments in a pipeline without writing any code that involves synchronizing threads. The communication between the segments is entirely built on buffered blocking channels. All the segments run concurrently using go routines.
+Conveyer is a data processing pipeline framework written in Go. It allows you to specify the segments in a pipeline without writing any code that involves synchronizing threads. The communication between the segments is entirely built on buffered blocking channels. All the segments run concurrently using go routines.
 
 Within each segment, you can specify an init and dispose job where the init job will always be executed once during startup. The dispose job runs once after the pipeline is terminated allowing you to clean up resources. Each segment also has its private cache for setting states in between jobs. Furthermore, you can specify your circuit breaker or use the default one, with the circuit breaker you can specify a fallback policy for how and when to reprocess a failed job. This Framework queues and segments logs making them easier to read as they get flushed once the data has flown through the whole pipeline, making logs come to stdout. The logger can also be customized or you can inject our own.
 
