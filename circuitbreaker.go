@@ -1,6 +1,8 @@
 package conveyor
 
 import (
+	"math"
+	"math/rand"
 	"runtime/debug"
 	"time"
 )
@@ -21,6 +23,7 @@ type CircuitBreaker struct {
 	NumberOfRetries int
 	Policy          FallbackPolicy
 	Interval        time.Duration
+	Rng             *rand.Rand
 }
 
 func NewDefeaultCircuitBreaker() ICircuitBreaker {
@@ -29,6 +32,7 @@ func NewDefeaultCircuitBreaker() ICircuitBreaker {
 		NumberOfRetries: 3,
 		Policy:          Static,
 		Interval:        0,
+		Rng:             rand.New(rand.NewSource(time.Now().Unix())),
 	}
 }
 
@@ -59,12 +63,14 @@ func (breaker *CircuitBreaker) Execute(stage *Stage, parcel *Parcel) interface{}
 }
 
 func (breaker *CircuitBreaker) NewBackoffTimer(circuit int) *time.Timer {
+	rngScale := (float64(breaker.Rng.Int31n(50)) + 50.0) / 100.0
+	duration := time.Duration(math.Round(float64(breaker.Interval.Nanoseconds()) * rngScale))
 	switch breaker.Policy {
 	case Exponential:
-		return time.NewTimer(breaker.Interval * time.Duration(circuit))
+		return time.NewTimer(duration * time.Duration(circuit*circuit))
 	case Static:
-		return time.NewTimer(breaker.Interval)
+		return time.NewTimer(duration)
 	default:
-		return time.NewTimer(breaker.Interval)
+		return time.NewTimer(duration)
 	}
 }
